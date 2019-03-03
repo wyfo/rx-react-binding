@@ -1,0 +1,16 @@
+{
+  "name": "rx-react",
+  "version": "1.0.0",
+  "description": "Build React rendering on top of RxJs logic",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "prop-types": "^15.7.2",
+    "react": "^16.8.3",
+    "rxjs": "^6.4.0"
+  }
+}
