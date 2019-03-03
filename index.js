@@ -2,36 +2,53 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { Observable } from 'rxjs';
 
+const $keysWithProp = props => Object.entries(props)
+    .filter(([k]) => k[k.length - 1] == '$')
+    .flatMap(([k, prop]) => k == '$'
+        ? Array.isArray(prop)
+            ? prop.entries()
+            : [[0, prop]]
+        : [[k, prop]])
+
 export class Binded extends Component {
     constructor(props) {
         super(props)
-        this.subscriptions = []
+        this.subscriptions = {}
     }
 
-    subscribe() {
-        for (let [key$, obs] of Object.entries(this.props))
-            if (key$[key$.length - 1] == "$" && obs) {
-                const key = key$.substring(0, key$.length - 1)
-                this.subscriptions.push(
-                    obs.subscribe(v => this.setState({ ...this.state, [key]: v }))
-                )
-            }
-        if (this.props.$) {
-            const $ = Array.isArray(this.props.$) ? this.props.$ : [this.props.$]
-            for (let obs of $) if (obs) {
-                this.subscriptions.push(obs.subscribe(obj => {
-                    this.setState({ ...this.state, ...obj })
-                }))
-            }
-        }
+    updateSubscription(key, prevObs$, obs$, cb) {
+        if (prevObs$ === obs$) return
+        if (prevObs$) this.subscriptions[key].unsubscribe()
+        if (obs$) this.subscriptions[key] = obs$.subscribe(cb)
     }
 
-    unsubscribe() {
-        while (this.subscriptions) this.subscriptions.pop().unsubscribe()
+    updateSubscriptions(prevProps) {
+        const allObs = {}
+        $keysWithProp(prevProps).forEach(([key, prevObs$]) => {
+            allObs[key] = [prevObs$, null]
+        })
+        $keysWithProp(this.props).forEach(([key, obs$]) => {
+            if (allObs[key]) allObs[key][1] = obs$
+            else allObs[key] = [null, obs$]
+        })
+        Object.entries(allObs).forEach(([key, [prevObs$, obs$]]) =>
+            this.updateSubscription(key, prevObs$, obs$,
+                key[key.length - 1] == '$'
+                    ? (v => this.setState({
+                        ...this.state,
+                        [key.substring(0, key.length - 1)]: v
+                    }))
+                    : (obj => this.setState({ ...this.state, ...obj }))
+            )
+        )
     }
 
     componentDidMount() {
-        this.subscribe()
+        this.updateSubscriptions({})
+    }
+
+    componentDidUpdate(prevProps) {
+        this.updateSubscriptions(prevProps)
     }
 
     render() {
@@ -43,7 +60,7 @@ export class Binded extends Component {
     }
 
     componentWillUnmount() {
-        this.unsubscribe()
+        Object.values(this.subscriptions).forEach(sub => sub.unsubscribe())
     }
 }
 
