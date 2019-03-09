@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import { Observable } from 'rxjs';
+import { take } from 'rxjs/operators'
 
 const $keysWithProp = props => Object.entries(props)
     .filter(([k]) => k[k.length - 1] == '$')
@@ -14,6 +14,12 @@ export class Binded extends Component {
     constructor(props) {
         super(props)
         this.subscriptions = {}
+        this.state = {}
+        $keysWithProp(props).forEach(([key, obs$]) => {
+            obs$.pipe(take(1)).subscribe(v => key[key.length - 1] == '$'
+                ? this.state = { ...this.state, [key.substring(0, key.length - 1)]: v }
+                : this.state = { ... this.state, ...v }).unsubscribe()
+        })
     }
 
     updateSubscription(key, prevObs$, obs$, cb) {
@@ -34,11 +40,10 @@ export class Binded extends Component {
         Object.entries(allObs).forEach(([key, [prevObs$, obs$]]) =>
             this.updateSubscription(key, prevObs$, obs$,
                 key[key.length - 1] == '$'
-                    ? (v => this.setState({
-                        ...this.state,
+                    ? v => this.setState(() => ({
                         [key.substring(0, key.length - 1)]: v
                     }))
-                    : (obj => this.setState({ ...this.state, ...obj }))
+                    : obj => this.setState(() => ({ ...obj }))
             )
         )
     }
@@ -68,8 +73,10 @@ Binded.propTypes = {
     _: PropTypes.elementType.isRequired,
 }
 
-export default Component => props => React.createElement(
+export const bindWith = defaultProps => Component => props => React.createElement(
     Binded,
-    { ...props, "_": Component },
+    { ...defaultProps, ...props, "_": Component },
     props.children
 )
+
+export const bind = bindWith({})

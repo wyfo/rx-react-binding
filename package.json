@@ -4,7 +4,7 @@
   "description": "Build React rendering on top of RxJs logic",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -12,5 +12,8 @@
     "prop-types": "^15.7.2",
     "react": "^16.8.3",
     "rxjs": "^6.4.0"
+  },
+  "devDependencies": {
+    "jest": "^24.1.0"
   }
 }
