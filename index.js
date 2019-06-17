@@ -10,42 +10,42 @@ const $keysWithProp = props => Object.entries(props)
             : [[0, prop]]
         : [[k, prop]])
 
+const getCurrentValueIfExists = obs$ => {
+    let value = undefined
+    obs$.pipe(take(1)).subscribe(v => { value = v }).unsubscribe()
+    return value
+}
+
 export class Binded extends Component {
     constructor(props) {
         super(props)
         this.subscriptions = {}
         this.state = {}
         $keysWithProp(props).forEach(([key, obs$]) => {
-            obs$.pipe(take(1)).subscribe(v => key[key.length - 1] == '$'
-                ? this.state = { ...this.state, [key.substring(0, key.length - 1)]: v }
-                : this.state = { ... this.state, ...v }).unsubscribe()
+            let value = getCurrentValueIfExists(obs$)
+            if (key[key.length - 1] == '$') this.state[key.substring(0, key.length - 1)] = value
+            else this.state = { ... this.state, ...value }
         })
-    }
-
-    updateSubscription(key, prevObs$, obs$, cb) {
-        if (prevObs$ === obs$) return
-        if (prevObs$) this.subscriptions[key].unsubscribe()
-        if (obs$) this.subscriptions[key] = obs$.subscribe(cb)
     }
 
     updateSubscriptions(prevProps) {
-        const allObs = {}
+        const allPrevObs = {}
         $keysWithProp(prevProps).forEach(([key, prevObs$]) => {
-            allObs[key] = [prevObs$, null]
+            allPrevObs[key] = prevObs$
         })
         $keysWithProp(this.props).forEach(([key, obs$]) => {
-            if (allObs[key]) allObs[key][1] = obs$
-            else allObs[key] = [null, obs$]
+            if (allPrevObs[key] == obs$) return
+            if (allPrevObs[key]) {
+                this.subscriptions[key].unsubscribe()
+                delete allPrevObs[key]
+            }
+            this.subscriptions[key] = obs$.subscribe(key[key.length - 1] == '$'
+                ? v => this.setState(() => ({
+                    [key.substring(0, key.length - 1)]: v
+                }))
+                : obj => this.setState(() => ({ ...obj })))
         })
-        Object.entries(allObs).forEach(([key, [prevObs$, obs$]]) =>
-            this.updateSubscription(key, prevObs$, obs$,
-                key[key.length - 1] == '$'
-                    ? v => this.setState(() => ({
-                        [key.substring(0, key.length - 1)]: v
-                    }))
-                    : obj => this.setState(() => ({ ...obj }))
-            )
-        )
+        Object.keys(allPrevObs).forEach(key => this.subscriptions[key].unsubscribe())
     }
 
     componentDidMount() {
