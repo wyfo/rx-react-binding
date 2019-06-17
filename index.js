@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import { take } from 'rxjs/operators'
+import { take, withLatestFrom } from 'rxjs/operators'
+import { BehaviorSubject, Subject, of, from } from 'rxjs';
 
 const $keysWithProp = props => Object.entries(props)
     .filter(([k]) => k[k.length - 1] == '$')
@@ -34,7 +35,10 @@ export class Binded extends Component {
             allPrevObs[key] = prevObs$
         })
         $keysWithProp(this.props).forEach(([key, obs$]) => {
-            if (allPrevObs[key] == obs$) return
+            if (allPrevObs[key] == obs$) {
+                delete allPrevObs[key]
+                return
+            }
             if (allPrevObs[key]) {
                 this.subscriptions[key].unsubscribe()
                 delete allPrevObs[key]
